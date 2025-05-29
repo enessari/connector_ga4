@@ -132,18 +132,13 @@ def execute_ga4_queries(params, creds_path, property_list, start_date, end_date)
         save_query_results(all_results, destination_prefix, query_name)
 
 def main():
-
-    with open("/data/config.json", "r") as f:
-    raw = f.read()
-    print("[DEBUG] Raw config.json:")
-    print(raw[:1000])  # ilk 1000 karakter yeterli
-    config = json.loads(raw)
-
     try:
         with open('/data/config.json', 'r') as f:
-            config = json.load(f)
+            raw = f.read()
+            print("[DEBUG] Raw config.json:\n", raw[:1000])
+            config = json.loads(raw)
     except Exception as e:
-        print("[ERROR] Cannot read /data/config.json")
+        print("[ERROR] Cannot read or parse /data/config.json")
         raise e
 
     params = config.get("parameters", {})
@@ -164,6 +159,7 @@ def main():
 
     creds_path = write_temp_credentials(service_account_json)
     execute_ga4_queries(params, creds_path, property_list, start_date, end_date)
+
 
 if __name__ == "__main__":
     main()
