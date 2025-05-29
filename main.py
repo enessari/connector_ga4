@@ -142,8 +142,12 @@ def main():
         raise e
 
     params = config.get("parameters", {})
-    service_account_json = params.get("service_account_json")
+    # Support for nested 'parameters' key (Meiro UI anomaly)
+    if "parameters" in params:
+        print("[INFO] Detected nested 'parameters' block in config — flattening...")
+        params = params["parameters"]
 
+    service_account_json = params.get("service_account_json")
     print("[DEBUG] Loaded service_account_json:", json.dumps(service_account_json, indent=2)[:500], "...\n")
 
     if not service_account_json or not isinstance(service_account_json, dict) or "private_key" not in service_account_json:
