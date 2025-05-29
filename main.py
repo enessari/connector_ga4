@@ -132,6 +132,13 @@ def execute_ga4_queries(params, creds_path, property_list, start_date, end_date)
         save_query_results(all_results, destination_prefix, query_name)
 
 def main():
+
+    with open("/data/config.json", "r") as f:
+    raw = f.read()
+    print("[DEBUG] Raw config.json:")
+    print(raw[:1000])  # ilk 1000 karakter yeterli
+    config = json.loads(raw)
+
     try:
         with open('/data/config.json', 'r') as f:
             config = json.load(f)
