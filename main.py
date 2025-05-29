@@ -1,6 +1,7 @@
 import json
 import os
 import pandas as pd
+from datetime import datetime
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dimension, Metric, FilterExpression, Filter
 from google.analytics.admin import AnalyticsAdminServiceClient
@@ -88,13 +89,16 @@ def run_query_for_property(data_client, query_name, dimensions, metrics, date_ra
 
     except Exception as e:
         print(f"[!] Query '{query_name}' failed for property {property_id}: {e}")
+        with open("/data/out/tables/query_errors.csv", "a") as err_file:
+            err_file.write(f"{datetime.now()},\"{query_name}\",{property_id},\"{e}\"\n")
     return results
 
 def save_query_results(results, destination_prefix, query_name):
     if results:
         df = pd.DataFrame(results)
         os.makedirs("/data/out/tables", exist_ok=True)
-        out_path = f"/data/out/tables/{destination_prefix}.{query_name}.csv"
+        timestamp = datetime.now().strftime("%Y%m%d")
+        out_path = f"/data/out/tables/{destination_prefix}.{query_name}.{timestamp}.csv"
         df.to_csv(out_path, index=False)
         print(f"[✓] Query '{query_name}' written to {out_path}")
     else:
@@ -106,8 +110,11 @@ def execute_ga4_queries(params, creds_path, property_list, start_date, end_date)
     destination_prefix = params.get("destination", "ga4.output")
     query_definitions = params.get("query_definitions", [])
 
+    print("[INFO] Running GA4 Queries...")
+
     for query in query_definitions:
         query_name = query.get("name", "query")
+        print(f"[→] Starting query: {query_name}")
         dimensions = [Dimension(name=d) for d in query.get("dimensions", [])]
         metrics = [Metric(name=m) for m in query.get("metrics", [])]
         dimension_filter = build_dimension_filter(query.get("dimension_filter"))
@@ -115,6 +122,7 @@ def execute_ga4_queries(params, creds_path, property_list, start_date, end_date)
 
         all_results = []
         for prop in property_list:
+            print(f"   ↳ Running for property: {prop.get('property_id')} ({prop.get('property_name', '')})")
             all_results.extend(
                 run_query_for_property(
                     data_client, query_name, dimensions, metrics, date_range, dimension_filter, prop
@@ -124,17 +132,24 @@ def execute_ga4_queries(params, creds_path, property_list, start_date, end_date)
         save_query_results(all_results, destination_prefix, query_name)
 
 def main():
-    with open('/data/config.json', 'r') as f:
-        config = json.load(f)
+    try:
+        with open('/data/config.json', 'r') as f:
+            config = json.load(f)
+    except Exception as e:
+        print("[ERROR] Cannot read /data/config.json")
+        raise e
 
     params = config.get("parameters", {})
     service_account_json = params.get("service_account_json")
+
+    print("[DEBUG] Loaded service_account_json:", json.dumps(service_account_json, indent=2)[:500], "...\n")
+
+    if not service_account_json or not isinstance(service_account_json, dict) or "private_key" not in service_account_json:
+        raise ValueError("Missing service account credentials")
+
     property_list = params.get("property_list", [])
     start_date = params.get("start_date", "2024-01-01")
     end_date = params.get("end_date", "2024-01-31")
-
-    if not service_account_json:
-        raise ValueError("Missing service account credentials")
 
     if not property_list:
         print("[i] No property list provided. Discovering all accessible GA4 properties...")
