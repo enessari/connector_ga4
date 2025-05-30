@@ -190,6 +190,7 @@ def save_query_results(results, destination_prefix, query_name, output_format="d
         os.makedirs("/data/out/tables", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d")
 
+        # output file name based on format
         if output_format == "airbyte_json":
             df["_airbyte_data"] = df.apply(lambda row: json.dumps(row.to_dict(), ensure_ascii=False), axis=1)
             df = df[["_airbyte_data"]]
@@ -199,8 +200,37 @@ def save_query_results(results, destination_prefix, query_name, output_format="d
 
         df.to_csv(out_path, index=False)
         print(f"[✓] Query '{query_name}' written to {out_path}")
+
+        # extract properties and accounts used
+        property_ids = list({row.get("property_id", "unknown") for row in results})
+        account_ids = list({row.get("account_id", "unknown") for row in results})
+        property_names = list({row.get("property_name", "") for row in results})
+        account_names = list({row.get("account_name", "") for row in results})
+        dimensions = df.columns.tolist()
+
+        # write manifest
+        manifest = {
+            "output_table": f"{destination_prefix}.{query_name}",
+            "filename": os.path.basename(out_path),
+            "format": "csv",
+            "row_count": len(df),
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "query_name": query_name,
+            "dimensions": dimensions,
+            "property_ids": property_ids,
+            "account_ids": account_ids,
+            "property_names": property_names,
+            "account_names": account_names
+        }
+
+        manifest_path = out_path.replace(".csv", ".manifest.json")
+        with open(manifest_path, "w") as mf:
+            json.dump(manifest, mf, indent=2, ensure_ascii=False)
+        print(f"[i] Manifest written to {manifest_path}")
+
     else:
         print(f"[!] No data for query '{query_name}'")
+
 
 def execute_ga4_queries(params, creds_path, property_list, start_date, end_date):
     credentials = build_credentials(creds_path)
