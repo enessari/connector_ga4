@@ -43,7 +43,7 @@ It reads parameters from `/data/config.json`, including:
       { "property_id": "123456789" },
       { "property_id": "123456789" }
     ],
-    "output_format": "default", // 
+    "output_format": "default"  // or "airbyte_json"
     "query_definitions": [
       {
         "name": "users_by_platform",
