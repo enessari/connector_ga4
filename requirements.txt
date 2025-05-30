@@ -1,3 +1,5 @@
 google-analytics-data>=0.14.1
 google-analytics-admin>=0.24.0
 pandas>=2.2.2
+aiofiles>=23.1.0
+requests>=2.28.0
