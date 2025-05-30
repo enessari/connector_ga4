@@ -22,6 +22,18 @@ def create_data_client(credentials):
 def create_admin_client(credentials):
     return AnalyticsAdminServiceClient(credentials=credentials)
 
+def get_account_display_names(credentials):
+    client = create_admin_client(credentials)
+    account_map = {}
+    try:
+        accounts = client.list_accounts()
+        for acc in accounts:
+            acc_id = acc.name.split("/")[-1]
+            account_map[acc_id] = acc.display_name
+    except Exception as e:
+        print(f"[!] Could not fetch account names: {e}")
+    return account_map
+
 def discover_all_properties(service_account_dict):
     creds_path = write_temp_credentials(service_account_dict)
     credentials = build_credentials(creds_path)
@@ -46,6 +58,7 @@ def discover_all_properties(service_account_dict):
 
 def enrich_properties_with_admin_api(property_list, credentials):
     client = create_admin_client(credentials)
+    account_map = get_account_display_names(credentials)
     enriched = []
     for prop in property_list:
         try:
@@ -53,7 +66,7 @@ def enrich_properties_with_admin_api(property_list, credentials):
             property_path = f"properties/{property_id}"
             prop_metadata = client.get_property(name=property_path)
             account_id = prop_metadata.parent.split("/")[-1]
-            account_name = f"account_{account_id}"
+            account_name = account_map.get(account_id, f"account_{account_id}")
             enriched.append({
                 "property_id": property_id,
                 "property_name": prop_metadata.display_name,
@@ -64,6 +77,7 @@ def enrich_properties_with_admin_api(property_list, credentials):
             print(f"[!] Failed to enrich property {prop}: {e}")
             enriched.append({ **prop, "account_id": "unknown", "account_name": "unknown" })
     return enriched
+
 
 def inject_date_dimension(query_definitions):
     for query in query_definitions:
