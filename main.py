@@ -1,6 +1,7 @@
 import json
 import os
 import pandas as pd
+import requests
 from datetime import datetime, timedelta
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dimension, Metric, FilterExpression, Filter
@@ -77,7 +78,49 @@ def enrich_properties_with_admin_api(property_list, credentials):
             print(f"[!] Failed to enrich property {prop}: {e}")
             enriched.append({ **prop, "account_id": "unknown", "account_name": "unknown" })
     return enriched
+def validate_query_fields(query_definitions, schema_url, report_path, fail_on_invalid=True):
+    print("[INFO] Validating dimensions and metrics...")
 
+    try:
+        response = requests.get(schema_url)
+        schema = response.json()
+        valid_dimensions = {d["apiName"] for d in schema.get("dimensions", [])}
+        valid_metrics = {m["apiName"] for m in schema.get("metrics", [])}
+    except Exception as e:
+        print(f"[WARNING] Could not fetch GA4 schema: {e}")
+        return
+
+    invalid_queries = []
+
+    for query in query_definitions:
+        name = query.get("name", "unnamed")
+        dims = query.get("dimensions", [])
+        mets = query.get("metrics", [])
+
+        invalid_dims = [d for d in dims if d not in valid_dimensions]
+        invalid_mets = [m for m in mets if m not in valid_metrics]
+
+        if invalid_dims or invalid_mets:
+            print(f"[❌] Invalid fields in query '{name}':")
+            if invalid_dims:
+                print(f"    → Invalid dimensions: {invalid_dims}")
+            if invalid_mets:
+                print(f"    → Invalid metrics: {invalid_mets}")
+            invalid_queries.append({
+                "query": name,
+                "invalid_dimensions": invalid_dims,
+                "invalid_metrics": invalid_mets
+            })
+
+    if invalid_queries:
+        os.makedirs(os.path.dirname(report_path), exist_ok=True)
+        with open(report_path, "w") as f:
+            f.write("query,invalid_dimensions,invalid_metrics\n")
+            for iq in invalid_queries:
+                f.write(f"{iq['query']},\"{','.join(iq['invalid_dimensions'])}\",\"{','.join(iq['invalid_metrics'])}\"\n")
+
+        if fail_on_invalid:
+            raise ValueError(f"[ABORTED] {len(invalid_queries)} query(ies) have invalid fields. See {report_path}")
 
 def inject_date_dimension(query_definitions):
     for query in query_definitions:
@@ -198,6 +241,15 @@ def main():
         print("[INFO] Enriching property list with Admin API metadata...")
         property_list = enrich_properties_with_admin_api(property_list, credentials)
     query_definitions = params.get("query_definitions", [])
+    validation = params.get("validation", {})
+    if validation.get("enabled"):
+        validate_query_fields(
+            query_definitions=query_definitions,
+            schema_url=validation.get("schema_url"),
+            report_path=validation.get("report_invalid_to", "/data/out/tables/invalid_queries.csv"),
+            fail_on_invalid=validation.get("fail_on_invalid", True)
+        )
+
     params["query_definitions"] = inject_date_dimension(query_definitions)
     execute_ga4_queries(params, creds_path, property_list, str(start_date), str(end_date))
 
