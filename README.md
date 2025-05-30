@@ -40,8 +40,8 @@ It reads parameters from `/data/config.json`, including:
     "end_date": "2024-01-31",
     "destination": "analytics.profiles",
     "property_list": [
-      { "property_id": "207548386" },
-      { "property_id": "332683219" }
+      { "property_id": "123456789" },
+      { "property_id": "123456789" }
     ],
     "query_definitions": [
       {
@@ -95,7 +95,7 @@ Example:
 Sample output:
 | date       | account_id | account_name | property_id | property_name | platform | activeUsers | newUsers |
 |------------|------------|--------------|-------------|----------------|----------|-------------|----------|
-| 2024-01-01 | 4752478    | ETS          | 207548386   | ETS Web        | Web      | 1500        | 300      |
+| 2024-01-01 | 1234567    | ABC          | 123456789   | ZYX            | Web      | 1500        | 300      |
 
 ---
 
