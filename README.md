@@ -8,11 +8,13 @@ This Python-based connector allows you to extract Google Analytics 4 (GA4) data 
 
 * ✅ Support for multiple GA4 properties across accounts
 * 🔁 Automatic discovery of properties if `property_list` is not provided
-* 🗕️ Customizable date range via `start_date` and `end_date`
-* 🧱 Dynamic selection of dimensions and metrics
-* 🎯 Optional segment-level filtering via `dimension_filter`
+* 🗕️ Customizable date range via `start_date` and `end_date` (defaults to last 7 days)
+* 🧱 Dynamic selection of dimensions and metrics (with optional filter support)
+* 🎯 Auto-injected `date` dimension if not defined in query
+* 📄 Admin API-based enrichment of `account_name` and `property_name`
+* ❌ Skips invalid queries or logs them to `/data/out/tables/invalid_queries.csv`
 * 📅 Output saved as individual `.csv` files for each query under `/data/out/tables/`
-* 🧪 Unit-testable modular architecture with coverage support
+* 🧪 Unit-testable modular architecture with optional schema validation support
 
 ---
 
@@ -20,7 +22,11 @@ This Python-based connector allows you to extract Google Analytics 4 (GA4) data 
 
 This connector is designed to work with Meiro's **Python from Git Repository** processor.
 
-It reads parameters from `/data/config.json` including service credentials, query definitions, and filters.
+It reads parameters from `/data/config.json`, including:
+- `service_account_json`
+- `property_list`
+- `query_definitions`
+- `validation` (optional)
 
 ---
 
@@ -29,18 +35,7 @@ It reads parameters from `/data/config.json` including service credentials, quer
 ```json
 {
   "parameters": {
-    "service_account_json": {
-      "type": "service_account",
-      "project_id": "ga4-project",
-      "private_key_id": "...",
-      "private_key": "-----BEGIN PRIVATE KEY-----\nABC...\n-----END PRIVATE KEY-----\n",
-      "client_email": "ga4@ga4-project.iam.gserviceaccount.com",
-      "client_id": "1234567890",
-      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-      "token_uri": "https://oauth2.googleapis.com/token",
-      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-      "client_x509_cert_url": "https://www.googleapis.com/..."
-    },
+    "service_account_json": { "type": "service_account", ... },
     "start_date": "2024-01-01",
     "end_date": "2024-01-31",
     "destination": "analytics.profiles",
@@ -58,24 +53,19 @@ It reads parameters from `/data/config.json` including service credentials, quer
         "name": "screenviews_by_screen",
         "dimensions": ["screenName"],
         "metrics": ["screenPageViews"]
-      },
-      {
-        "name": "engaged_sessions",
-        "dimensions": ["deviceCategory"],
-        "metrics": ["engagedSessions", "engagementRate"],
-        "dimension_filter": {
-          "and_group": [
-            { "field_name": "country", "string_filter": { "value": "Turkey" } },
-            { "field_name": "platform", "string_filter": { "value": "Web" } }
-          ]
-        }
       }
-    ]
+    ],
+    "validation": {
+      "enabled": true,
+      "schema_url": "https://www.googleapis.com/analytics/v1alpha/metadata/ga4?fields=dimensions,metrics",
+      "fail_on_invalid": true,
+      "report_invalid_to": "/data/out/tables/invalid_queries.csv"
+    }
   }
 }
 ```
 
-> ℹ️ If `property_list` is **not provided**, the connector will auto-discover all accessible GA4 properties using the Admin API. This includes `account_id`, `account_name`, `property_id`, and `property_name`.
+> ℹ️ `account_id` and `account_name` fields are auto-enriched if omitted.
 
 ---
 
@@ -94,35 +84,30 @@ connector_ga4/
 ## 📆 Output Format
 
 Each query is written to:
-
 ```
-/data/out/tables/{destination}.{query_name}.csv
+/data/out/tables/{destination}.{query_name}.{YYYYMMDD}.csv
 ```
-
 Example:
-
 ```
-/data/out/tables/analytics.profiles.users_by_platform.csv
+/data/out/tables/analytics.profiles.users_by_platform.20240530.csv
 ```
 
 Sample output:
-
-| account\_id | account\_name | property\_id | property\_name | country | platform | activeUsers | newUsers |
-| ----------- | ------------- | ------------ | -------------- | ------- | -------- | ----------- | -------- |
-| 4752478     | ETS           | 207548386    | ETS Web        | Turkey  | Web      | 1500        | 300      |
+| date       | account_id | account_name | property_id | property_name | platform | activeUsers | newUsers |
+|------------|------------|--------------|-------------|----------------|----------|-------------|----------|
+| 2024-01-01 | 4752478    | ETS          | 207548386   | ETS Web        | Web      | 1500        | 300      |
 
 ---
 
 ## 🛠 Dependencies
 
 ```txt
-google-analytics-data==0.14.1
-google-analytics-admin==1.14.1
-pandas
+google-analytics-data>=0.14.1
+google-analytics-admin>=0.24.0
+pandas>=1.5.0
+requests
 ```
-
 Install:
-
 ```bash
 pip install -r requirements.txt
 ```
@@ -133,16 +118,14 @@ pip install -r requirements.txt
 
 * Requires access to both the [GA4 Admin API](https://developers.google.com/analytics/devguides/config/admin/v1) and [GA4 Data API](https://developers.google.com/analytics/devguides/reporting/data/v1)
 * Filters support only `string_filter` inside `AND` logic group
-* Each query is executed independently per GA4 property
-* Invalid metrics or dimensions may cause property-level failures (handled gracefully)
-* Tested on Python 3.8+, pandas 1.5+
+* Schema validation uses Google's official GA4 API metadata
+* Each query is executed per property; failures are logged and skipped
 
 ---
 
 ## 🧪 Testing & Coverage
 
 Run all tests:
-
 ```bash
 coverage run -m unittest discover
 coverage report -m
@@ -150,21 +133,21 @@ coverage html && open htmlcov/index.html
 ```
 
 Tested modules:
-
-* Credential I/O
-* Query execution
-* Property discovery
-* CSV output writing
-* Filter logic construction
+- Credential I/O
+- Query execution
+- Property enrichment
+- CSV output writing
+- Validation logic
+- Filter parsing
 
 ---
 
 ## 🧐 Use Cases
 
-* Pull user metrics by country/device
-* Generate page/screen-level views for mobile apps
-* Run multiple parallel queries with different filters
-* Automatically handle all properties without hardcoding
+* Fetch user metrics by platform/device
+* Build event and conversion summaries by region
+* Run cohort-style multi-day metrics
+* Export structured data for Metabase or dashboard tooling
 
 ---
 
