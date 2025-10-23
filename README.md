@@ -1,4 +1,4 @@
-# 📊 GA4 Connector for Meiro CDP
+# 📊 GA4 Connector for CDPs (Meiro supported)
 
 This Python-based connector allows you to extract Google Analytics 4 (GA4) data through Google's official APIs and deliver it into Meiro CDP pipelines. It supports multiple properties, dynamic field selection, date range control, optional segmentation, and outputs query-specific results per run.
 
