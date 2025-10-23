@@ -75,9 +75,10 @@ It reads parameters from `/data/config.json`, including:
 ```
 connector_ga4/
 ├── main.py                # Main execution file
-├── test_main.py           # Unit tests
+├── unittest.py            # Placeholder for future unit tests
 ├── requirements.txt       # Dependencies
-└── README.md              # Documentation
+├── README.md              # Documentation
+└── README_QUERY_PRESETS.md# Query preset reference
 ```
 
 ---
@@ -152,10 +153,16 @@ Tested modules:
 
 ---
 
-## 👤 Maintainer
+## 🧭 Eksiklikler ve İyileştirme Önerileri
 
-Created and maintained by [Abdullah Enes Sarı](https://github.com/enessari)
-Feel free to submit suggestions, enhancements, or fork the project.
+* **Test kapsamı eksik:** `unittest.py` şimdilik yalnızca yer tutucu içeriyor. Gerçekçi senaryoları kapsayan testlerin eklenmesi gerekiyor.
+* **Güvenlik iletişim akışının tanımlanması gerekiyor:** `SECURITY.md` altında ileride kullanılacak bildirim sürecini belirlemek için bir eylem planı oluşturun.
+* **Otomatik CI/CD ve kalite kontrolleri yok:** Bağımlılık güvenliği ve stil denetimleri için GitHub Actions veya benzeri bir boru hattı eklemek sürdürülebilirliği artırır.
+* **Konfigürasyon örnekleri geliştirilebilir:** Büyük hacimli veri senaryoları için oran sınırlayıcı ve dosya çıktısı seçeneklerini belgeleyen ek örnekler, kullanıcıların karmaşık kurulumlarda hata yapmasını engeller.
+
+## 👥 Sürdürülebilirlik ve İletişim
+
+Bu proje artık **ONMARTECH LLC** tarafından sürdürülmektedir. Öneri, hata veya geliştirme talepleriniz için lütfen bir konu açın.
 
 ---
 

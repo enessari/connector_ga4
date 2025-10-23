@@ -19,8 +19,7 @@ If you discover a security vulnerability in this project, please report it respo
 
 ### How to Report:
 
-* Email: ** *(PGP available on request)*
-* GitHub: Open a [security advisory](https://github.com/enessari/connector_ga4/security/advisories/new)
+* Preferred contact channel is being finalized. In the meantime, please document findings privately and refrain from public disclosure.
 
 ### What to Expect:
 
